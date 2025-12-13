@@ -2,7 +2,8 @@ const express = require('express');
 const User = require('../models/User');
 const Course = require('../models/Course');
 const Progress = require('../models/Progress');
-const auth = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
+const { validateProfile } = require('../middleware/validation');
 const router = express.Router();
 
 // @route   GET /api/students
@@ -11,16 +12,25 @@ const router = express.Router();
 router.get('/', auth, async (req, res) => {
   try {
     if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized' });
+      return res.status(403).json({ 
+        status: 'error',
+        message: 'Not authorized' 
+      });
     }
 
     const students = await User.find({ role: 'student' })
       .select('-password')
       .populate('enrolledCourses', 'title category');
 
-    res.json(students);
+    res.json({
+      status: 'success',
+      data: { students }
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      status: 'error',
+      message: error.message 
+    });
   }
 });
 
@@ -30,7 +40,10 @@ router.get('/', auth, async (req, res) => {
 router.get('/stats', auth, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized' });
+      return res.status(403).json({ 
+        status: 'error',
+        message: 'Not authorized' 
+      });
     }
 
     const totalStudents = await User.countDocuments({ role: 'student' });
@@ -59,15 +72,21 @@ router.get('/stats', auth, async (req, res) => {
     ]);
 
     res.json({
-      totalStudents,
-      totalCourses,
-      totalEnrollments: totalEnrollments[0]?.total || 0,
-      activeStudents: activeStudents.length,
-      averageProgress: completionStats[0]?.avgProgress || 0,
-      completedCourses: completionStats[0]?.completedCourses || 0
+      status: 'success',
+      data: {
+        totalStudents,
+        totalCourses,
+        totalEnrollments: totalEnrollments[0]?.total || 0,
+        activeStudents: activeStudents.length,
+        averageProgress: completionStats[0]?.avgProgress || 0,
+        completedCourses: completionStats[0]?.completedCourses || 0
+      }
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      status: 'error',
+      message: error.message 
+    });
   }
 });
 
@@ -108,9 +127,15 @@ router.get('/leaderboard', auth, async (req, res) => {
       }
     ]);
 
-    res.json(topStudents);
+    res.json({
+      status: 'success',
+      data: { leaderboard: topStudents }
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      status: 'error',
+      message: error.message 
+    });
   }
 });
 
@@ -121,7 +146,10 @@ router.get('/:id', auth, async (req, res) => {
   try {
     // Students can only view their own profile, teachers/admins can view any
     if (req.user.role === 'student' && req.user._id.toString() !== req.params.id) {
-      return res.status(403).json({ message: 'Not authorized' });
+      return res.status(403).json({ 
+        status: 'error',
+        message: 'Not authorized' 
+      });
     }
 
     const student = await User.findById(req.params.id)
@@ -129,7 +157,10 @@ router.get('/:id', auth, async (req, res) => {
       .populate('enrolledCourses', 'title category difficulty');
 
     if (!student) {
-      return res.status(404).json({ message: 'Student not found' });
+      return res.status(404).json({ 
+        status: 'error',
+        message: 'Student not found' 
+      });
     }
 
     // Get student's progress across all courses
@@ -137,21 +168,30 @@ router.get('/:id', auth, async (req, res) => {
       .populate('course', 'title category');
 
     res.json({
-      student,
-      progress
+      status: 'success',
+      data: {
+        student,
+        progress
+      }
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      status: 'error',
+      message: error.message 
+    });
   }
 });
 
 // @route   PUT /api/students/:id/profile
 // @desc    Update student profile
 // @access  Private (Own profile only)
-router.put('/:id/profile', auth, async (req, res) => {
+router.put('/:id/profile', auth, validateProfile, async (req, res) => {
   try {
     if (req.user._id.toString() !== req.params.id) {
-      return res.status(403).json({ message: 'Not authorized to update this profile' });
+      return res.status(403).json({ 
+        status: 'error',
+        message: 'Not authorized to update this profile' 
+      });
     }
 
     const { name, profile } = req.body;
@@ -161,9 +201,16 @@ router.put('/:id/profile', auth, async (req, res) => {
       { new: true, runValidators: true }
     ).select('-password');
 
-    res.json(updatedUser);
+    res.json({
+      status: 'success',
+      message: 'Profile updated successfully',
+      data: { user: updatedUser }
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      status: 'error',
+      message: error.message 
+    });
   }
 });
 

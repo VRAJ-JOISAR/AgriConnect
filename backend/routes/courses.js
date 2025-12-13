@@ -1,7 +1,8 @@
 const express = require('express');
 const Course = require('../models/Course');
 const User = require('../models/User');
-const auth = require('../middleware/auth');
+const { auth, teacherOrAdmin } = require('../middleware/auth');
+const { validateCourse } = require('../middleware/validation');
 const router = express.Router();
 
 // @route   GET /api/courses
@@ -26,9 +27,15 @@ router.get('/', async (req, res) => {
       .populate('instructor', 'name email')
       .sort({ createdAt: -1 });
 
-    res.json(courses);
+    res.json({
+      status: 'success',
+      data: { courses }
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
   }
 });
 
@@ -42,30 +49,49 @@ router.get('/:id', async (req, res) => {
       .populate('enrolledStudents', 'name email');
 
     if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
+      return res.status(404).json({
+        status: 'error',
+        message: 'Course not found'
+      });
     }
 
-    res.json(course);
+    res.json({
+      status: 'success',
+      data: { course }
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
   }
 });
 
 // @route   POST /api/courses
 // @desc    Create a new course
 // @access  Private (Teachers/Admins)
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, validateCourse, async (req, res) => {
   try {
     if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized to create courses' });
+      return res.status(403).json({
+        status: 'error',
+        message: 'Not authorized to create courses'
+      });
     }
 
     const courseData = { ...req.body, instructor: req.user._id };
     const course = await Course.create(courseData);
 
-    res.status(201).json(course);
+    res.status(201).json({
+      status: 'success',
+      message: 'Course created successfully',
+      data: { course }
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
   }
 });
 
@@ -77,12 +103,18 @@ router.put('/:id', auth, async (req, res) => {
     const course = await Course.findById(req.params.id);
 
     if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
+      return res.status(404).json({
+        status: 'error',
+        message: 'Course not found'
+      });
     }
 
     // Check if user is course instructor or admin
     if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized to update this course' });
+      return res.status(403).json({
+        status: 'error',
+        message: 'Not authorized to update this course'
+      });
     }
 
     const updatedCourse = await Course.findByIdAndUpdate(
@@ -91,9 +123,16 @@ router.put('/:id', auth, async (req, res) => {
       { new: true, runValidators: true }
     ).populate('instructor', 'name email');
 
-    res.json(updatedCourse);
+    res.json({
+      status: 'success',
+      message: 'Course updated successfully',
+      data: { course: updatedCourse }
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
   }
 });
 
@@ -106,12 +145,18 @@ router.post('/:id/enroll', auth, async (req, res) => {
     const user = await User.findById(req.user._id);
 
     if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
+      return res.status(404).json({
+        status: 'error',
+        message: 'Course not found'
+      });
     }
 
     // Check if already enrolled
     if (course.enrolledStudents.includes(req.user._id)) {
-      return res.status(400).json({ message: 'Already enrolled in this course' });
+      return res.status(400).json({
+        status: 'error',
+        message: 'Already enrolled in this course'
+      });
     }
 
     // Add student to course
@@ -122,13 +167,19 @@ router.post('/:id/enroll', auth, async (req, res) => {
     user.enrolledCourses.push(course._id);
     await user.save();
 
-    res.json({ message: 'Successfully enrolled in course' });
+    res.json({
+      status: 'success',
+      message: 'Successfully enrolled in course'
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
   }
 });
 
-// @route   GET /api/courses/my-courses
+// @route   GET /api/courses/my/courses
 // @desc    Get user's enrolled courses
 // @access  Private
 router.get('/my/courses', auth, async (req, res) => {
@@ -141,9 +192,15 @@ router.get('/my/courses', auth, async (req, res) => {
       }
     });
 
-    res.json(user.enrolledCourses);
+    res.json({
+      status: 'success',
+      data: { courses: user.enrolledCourses }
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
   }
 });
 

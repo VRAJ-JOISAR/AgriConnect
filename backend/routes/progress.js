@@ -1,7 +1,8 @@
 const express = require('express');
 const Progress = require('../models/Progress');
 const Course = require('../models/Course');
-const auth = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
+const { validateQuizSubmission, validateLessonCompletion } = require('../middleware/validation');
 const router = express.Router();
 
 // @route   GET /api/progress/:studentId/:courseId
@@ -13,7 +14,10 @@ router.get('/:studentId/:courseId', auth, async (req, res) => {
 
     // Students can only view their own progress
     if (req.user.role === 'student' && req.user._id.toString() !== studentId) {
-      return res.status(403).json({ message: 'Not authorized' });
+      return res.status(403).json({
+        status: 'error',
+        message: 'Not authorized'
+      });
     }
 
     let progress = await Progress.findOne({ 
@@ -31,16 +35,22 @@ router.get('/:studentId/:courseId', auth, async (req, res) => {
       await progress.populate('course', 'title lessons quizzes');
     }
 
-    res.json(progress);
+    res.json({
+      status: 'success',
+      data: { progress }
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
   }
 });
 
 // @route   POST /api/progress/complete-lesson
 // @desc    Mark lesson as completed
 // @access  Private
-router.post('/complete-lesson', auth, async (req, res) => {
+router.post('/complete-lesson', auth, validateLessonCompletion, async (req, res) => {
   try {
     const { courseId, lessonId, timeSpent } = req.body;
     const studentId = req.user._id;
@@ -80,7 +90,7 @@ router.post('/complete-lesson', auth, async (req, res) => {
     progress.lastActivity = new Date();
 
     // Award badges
-    if (progress.overallProgress === 100 && !progress.badges.includes('Course Completed')) {
+    if (progress.overallProgress === 100 && !progress.badges.some(b => b.type === 'Course Completed')) {
       progress.badges.push({
         type: 'Course Completed',
         earnedAt: new Date()
@@ -89,16 +99,23 @@ router.post('/complete-lesson', auth, async (req, res) => {
 
     await progress.save();
 
-    res.json(progress);
+    res.json({
+      status: 'success',
+      message: 'Lesson marked as completed',
+      data: { progress }
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
   }
 });
 
 // @route   POST /api/progress/complete-quiz
 // @desc    Submit quiz and record score
 // @access  Private
-router.post('/complete-quiz', auth, async (req, res) => {
+router.post('/complete-quiz', auth, validateQuizSubmission, async (req, res) => {
   try {
     const { courseId, quizId, answers } = req.body;
     const studentId = req.user._id;
@@ -108,7 +125,10 @@ router.post('/complete-quiz', auth, async (req, res) => {
     const quiz = course.quizzes.id(quizId);
 
     if (!quiz) {
-      return res.status(404).json({ message: 'Quiz not found' });
+      return res.status(404).json({
+        status: 'error',
+        message: 'Quiz not found'
+      });
     }
 
     // Calculate score
@@ -149,14 +169,14 @@ router.post('/complete-quiz', auth, async (req, res) => {
     }
 
     // Award badges based on performance
-    if (score === 100 && !progress.badges.includes('Perfect Score')) {
+    if (score === 100 && !progress.badges.some(b => b.type === 'Perfect Score')) {
       progress.badges.push({
         type: 'Perfect Score',
         earnedAt: new Date()
       });
     }
 
-    if (progress.streakCount >= 5 && !progress.badges.includes('On Fire')) {
+    if (progress.streakCount >= 5 && !progress.badges.some(b => b.type === 'On Fire')) {
       progress.badges.push({
         type: 'On Fire',
         earnedAt: new Date()
@@ -167,13 +187,20 @@ router.post('/complete-quiz', auth, async (req, res) => {
     await progress.save();
 
     res.json({
-      score,
-      correctAnswers,
-      totalQuestions: quiz.questions.length,
-      progress
+      status: 'success',
+      message: 'Quiz completed successfully',
+      data: {
+        score,
+        correctAnswers,
+        totalQuestions: quiz.questions.length,
+        progress
+      }
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
   }
 });
 
@@ -186,7 +213,10 @@ router.get('/dashboard/:studentId', auth, async (req, res) => {
 
     // Students can only view their own dashboard
     if (req.user.role === 'student' && req.user._id.toString() !== studentId) {
-      return res.status(403).json({ message: 'Not authorized' });
+      return res.status(403).json({
+        status: 'error',
+        message: 'Not authorized'
+      });
     }
 
     const progressData = await Progress.find({ student: studentId })
@@ -209,18 +239,24 @@ router.get('/dashboard/:studentId', auth, async (req, res) => {
       .slice(0, 5);
 
     res.json({
-      summary: {
-        totalCourses,
-        completedCourses,
-        averageProgress,
-        totalBadges,
-        currentStreak
-      },
-      courses: progressData,
-      recentActivity
+      status: 'success',
+      data: {
+        summary: {
+          totalCourses,
+          completedCourses,
+          averageProgress,
+          totalBadges,
+          currentStreak
+        },
+        courses: progressData,
+        recentActivity
+      }
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
   }
 });
 

@@ -1,213 +1,395 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { GraduationCap, Users, BookOpen, TrendingUp, Menu, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import './App.css';
 
-const LandingPage = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+// Main AgriConnect Application Component
+const AgriConnect = () => {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [currentPage, setCurrentPage] = useState('home');
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const stats = [
-    { label: 'Students', value: '12K+', icon: Users },
-    { label: 'Courses', value: '150+', icon: BookOpen },
-    { label: 'Success Rate', value: '94%', icon: TrendingUp }
+  // Sample course data (in real app, this would come from backend API)
+  const sampleCourses = [
+    {
+      id: 1,
+      title: "Sustainable Farming Techniques",
+      category: "Agriculture",
+      difficulty: "Beginner",
+      description: "Learn modern sustainable farming practices that protect the environment while maximizing crop yields.",
+      instructor: "Dr. Sarah Johnson",
+      duration: "6 weeks",
+      enrolled: false,
+      thumbnail: "/api/placeholder/300/200"
+    },
+    {
+      id: 2,
+      title: "Organic Crop Management",
+      category: "Agriculture", 
+      difficulty: "Intermediate",
+      description: "Master organic farming methods, pest control, and soil health management.",
+      instructor: "Prof. Michael Chen",
+      duration: "8 weeks",
+      enrolled: false,
+      thumbnail: "/api/placeholder/300/200"
+    },
+    {
+      id: 3,
+      title: "Agricultural Technology & IoT",
+      category: "Technology",
+      difficulty: "Advanced", 
+      description: "Explore how IoT sensors, drones, and AI are revolutionizing modern agriculture.",
+      instructor: "Dr. Emily Rodriguez",
+      duration: "10 weeks",
+      enrolled: false,
+      thumbnail: "/api/placeholder/300/200"
+    }
   ];
 
-  return (
-    <div className="min-h-screen bg-white">
-      {/* Minimal Navigation */}
-      <nav className="nav">
+  useEffect(() => {
+    setCourses(sampleCourses);
+    // Check if user is logged in (check localStorage or make API call)
+    const savedUser = localStorage.getItem('agriconnect_user');
+    if (savedUser) {
+      setCurrentUser(JSON.parse(savedUser));
+    }
+  }, []);
+
+  // Authentication Functions
+  const handleLogin = async (email, password) => {
+    setLoading(true);
+    try {
+      // Simulate API call to backend
+      const response = await fetch('http://localhost:5001/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentUser(data.data.user);
+        localStorage.setItem('agriconnect_user', JSON.stringify(data.data.user));
+        localStorage.setItem('agriconnect_token', data.data.token);
+        setCurrentPage('dashboard');
+      } else {
+        alert('Login failed. Please check your credentials.');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      alert('Login failed. Please try again.');
+    }
+    setLoading(false);
+  };
+
+  const handleRegister = async (userData) => {
+    setLoading(true);
+    try {
+      const response = await fetch('http://localhost:5001/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentUser(data.data.user);
+        localStorage.setItem('agriconnect_user', JSON.stringify(data.data.user));
+        localStorage.setItem('agriconnect_token', data.data.token);
+        setCurrentPage('dashboard');
+      } else {
+        alert('Registration failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      alert('Registration failed. Please try again.');
+    }
+    setLoading(false);
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('agriconnect_user');
+    localStorage.removeItem('agriconnect_token');
+    setCurrentPage('home');
+  };
+
+  const enrollInCourse = (courseId) => {
+    setCourses(prevCourses =>
+      prevCourses.map(course =>
+        course.id === courseId
+          ? { ...course, enrolled: true }
+          : course
+      )
+    );
+    alert('Successfully enrolled in course!');
+  };
+
+  // Page Components
+  const HomePage = () => (
+    <div className="home-page">
+      <div className="hero-section">
         <div className="container">
-          <div className="nav-content">
-            <div className="nav-brand">
-              <GraduationCap size={24} color="black" />
-              <span>EduConnect</span>
-            </div>
-
-            {/* Desktop Navigation */}
-            <div className="nav-links">
-              <a href="#features" className="nav-link">Features</a>
-              <a href="#courses" className="nav-link">Courses</a>
-              <a href="#about" className="nav-link">About</a>
-              <button className="btn-primary">
-                Get Started
-              </button>
-            </div>
-
-            {/* Mobile menu button */}
+          <h1>Welcome to AgriConnect</h1>
+          <p>Your gateway to modern agricultural education and sustainable farming practices.</p>
+          <div className="hero-buttons">
             <button 
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="mobile-menu-btn"
+              className="btn-primary btn-large"
+              onClick={() => setCurrentPage('courses')}
             >
-              {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              Explore Courses
+            </button>
+            <button 
+              className="btn-secondary btn-large"
+              onClick={() => setCurrentPage('login')}
+            >
+              Login / Register
             </button>
           </div>
+        </div>
+      </div>
+      
+      <div className="features-section">
+        <div className="container">
+          <h2>Why Choose AgriConnect?</h2>
+          <div className="features-grid">
+            <div className="feature-card">
+              <h3>🌱 Sustainable Learning</h3>
+              <p>Learn eco-friendly farming techniques that protect our planet</p>
+            </div>
+            <div className="feature-card">
+              <h3>👨‍🌾 Expert Instructors</h3>
+              <p>Learn from industry professionals and experienced farmers</p>
+            </div>
+            <div className="feature-card">
+              <h3>📊 Progress Tracking</h3>
+              <p>Monitor your learning journey with detailed analytics</p>
+            </div>
+            <div className="feature-card">
+              <h3>🤝 Community Support</h3>
+              <p>Connect with fellow learners and agricultural enthusiasts</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
-          {/* Mobile Navigation */}
-          {isMenuOpen && (
-            <motion.div 
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              className="mobile-nav"
+  const LoginPage = () => {
+    const [isLogin, setIsLogin] = useState(true);
+    const [formData, setFormData] = useState({
+      email: '',
+      password: '',
+      name: '',
+      role: 'student'
+    });
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      if (isLogin) {
+        handleLogin(formData.email, formData.password);
+      } else {
+        handleRegister(formData);
+      }
+    };
+
+    return (
+      <div className="auth-page">
+        <div className="auth-container">
+          <h2>{isLogin ? 'Login to AgriConnect' : 'Join AgriConnect'}</h2>
+          <form onSubmit={handleSubmit} className="auth-form">
+            {!isLogin && (
+              <input
+                type="text"
+                placeholder="Full Name"
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                required
+              />
+            )}
+            <input
+              type="email"
+              placeholder="Email Address"
+              value={formData.email}
+              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              required
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={formData.password}
+              onChange={(e) => setFormData({...formData, password: e.target.value})}
+              required
+            />
+            {!isLogin && (
+              <select
+                value={formData.role}
+                onChange={(e) => setFormData({...formData, role: e.target.value})}
+              >
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
+              </select>
+            )}
+            <button type="submit" className="btn-primary" disabled={loading}>
+              {loading ? 'Processing...' : (isLogin ? 'Login' : 'Register')}
+            </button>
+          </form>
+          <p>
+            {isLogin ? "Don't have an account? " : "Already have an account? "}
+            <button 
+              type="button"
+              className="link-button"
+              onClick={() => setIsLogin(!isLogin)}
             >
-              <a href="#features">Features</a>
-              <a href="#courses">Courses</a>
-              <a href="#about">About</a>
-              <button className="btn-primary">
-                Get Started
+              {isLogin ? 'Register' : 'Login'}
+            </button>
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  const CoursesPage = () => (
+    <div className="courses-page">
+      <div className="container">
+        <h2>Available Courses</h2>
+        <div className="courses-grid">
+          {courses.map(course => (
+            <div key={course.id} className="course-card">
+              <div className="course-image">
+                <div className="placeholder-image">📚</div>
+              </div>
+              <div className="course-content">
+                <h3>{course.title}</h3>
+                <p className="course-meta">
+                  {course.category} • {course.difficulty} • {course.duration}
+                </p>
+                <p className="course-description">{course.description}</p>
+                <p className="course-instructor">Instructor: {course.instructor}</p>
+                <button
+                  className={`btn-primary ${course.enrolled ? 'enrolled' : ''}`}
+                  onClick={() => !course.enrolled && enrollInCourse(course.id)}
+                  disabled={course.enrolled}
+                >
+                  {course.enrolled ? 'Enrolled ✓' : 'Enroll Now'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const DashboardPage = () => {
+    const enrolledCourses = courses.filter(course => course.enrolled);
+    
+    return (
+      <div className="dashboard-page">
+        <div className="container">
+          <h2>Welcome back, {currentUser?.name}!</h2>
+          
+          <div className="dashboard-stats">
+            <div className="stat-card">
+              <h3>{enrolledCourses.length}</h3>
+              <p>Enrolled Courses</p>
+            </div>
+            <div className="stat-card">
+              <h3>{Math.floor(Math.random() * 100)}%</h3>
+              <p>Average Progress</p>
+            </div>
+            <div className="stat-card">
+              <h3>{Math.floor(Math.random() * 10)}</h3>
+              <p>Certificates Earned</p>
+            </div>
+          </div>
+
+          <div className="dashboard-section">
+            <h3>My Courses</h3>
+            {enrolledCourses.length > 0 ? (
+              <div className="courses-list">
+                {enrolledCourses.map(course => (
+                  <div key={course.id} className="course-item">
+                    <h4>{course.title}</h4>
+                    <div className="progress-bar">
+                      <div className="progress-fill" style={{width: `${Math.random() * 100}%`}}></div>
+                    </div>
+                    <button className="btn-secondary">Continue Learning</button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p>No courses enrolled yet. <button className="link-button" onClick={() => setCurrentPage('courses')}>Browse Courses</button></p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Navigation Component
+  const Navigation = () => (
+    <nav className="navigation">
+      <div className="container nav-container">
+        <div className="nav-brand" onClick={() => setCurrentPage('home')}>
+          🌱 AgriConnect
+        </div>
+        <div className="nav-links">
+          <button onClick={() => setCurrentPage('home')} className={currentPage === 'home' ? 'active' : ''}>
+            Home
+          </button>
+          <button onClick={() => setCurrentPage('courses')} className={currentPage === 'courses' ? 'active' : ''}>
+            Courses
+          </button>
+          {currentUser ? (
+            <>
+              <button onClick={() => setCurrentPage('dashboard')} className={currentPage === 'dashboard' ? 'active' : ''}>
+                Dashboard
               </button>
-            </motion.div>
+              <button onClick={handleLogout} className="btn-secondary">
+                Logout ({currentUser.name})
+              </button>
+            </>
+          ) : (
+            <button onClick={() => setCurrentPage('login')} className="btn-primary">
+              Login
+            </button>
           )}
         </div>
-      </nav>
+      </div>
+    </nav>
+  );
 
-      {/* Hero Section */}
-      <section className="hero">
-        <div className="container">
-          <div className="hero-content">
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="fade-in"
-            >
-              Learn smarter,
-              <br />
-              <span className="font-medium">not harder</span>
-            </motion.h1>
+  // Render current page
+  const renderCurrentPage = () => {
+    switch (currentPage) {
+      case 'login':
+        return <LoginPage />;
+      case 'courses':
+        return <CoursesPage />;
+      case 'dashboard':
+        return currentUser ? <DashboardPage /> : <LoginPage />;
+      default:
+        return <HomePage />;
+    }
+  };
 
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="fade-in-delayed"
-            >
-              A modern learning platform designed for the way you think.
-              Simple, effective, and built for results.
-            </motion.p>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className="hero-buttons"
-            >
-              <button className="btn-primary btn-large">
-                Start Learning
-              </button>
-              <button className="btn-secondary btn-large">
-                View Demo
-              </button>
-            </motion.div>
-          </div>
-
-          {/* Stats Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.6 }}
-            className="stats fade-in-stats"
-          >
-            {stats.map((stat, index) => (
-              <div key={index} className="stat-item">
-                <div className="stat-icon">
-                  <stat.icon size={20} color="#666" />
-                </div>
-                <div className="stat-value">{stat.value}</div>
-                <div className="stat-label">{stat.label}</div>
-              </div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Simple Features Section */}
-      <section className="features">
-        <div className="container">
-          <div className="features-header">
-            <h2>
-              Everything you need to succeed
-            </h2>
-            <p>
-              Focused on what matters most for your learning journey.
-            </p>
-          </div>
-
-          <div className="features-grid">
-            {[
-              {
-                title: 'Interactive Lessons',
-                description: 'Engaging content that adapts to your learning style'
-              },
-              {
-                title: 'Progress Tracking',
-                description: 'Clear insights into your learning progress'
-              },
-              {
-                title: 'Expert Instructors',
-                description: 'Learn from industry professionals'
-              },
-              {
-                title: 'Flexible Schedule',
-                description: 'Learn at your own pace, anytime'
-              },
-              {
-                title: 'Community Support',
-                description: 'Connect with fellow learners'
-              },
-              {
-                title: 'Certificates',
-                description: 'Earn recognized credentials'
-              }
-            ].map((feature, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="feature-item"
-              >
-                <h3>{feature.title}</h3>
-                <p>{feature.description}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Simple CTA Section */}
-      <section className="cta">
-        <div className="container">
-          <div className="cta-content">
-            <h2>
-              Ready to start learning?
-            </h2>
-            <p>
-              Join thousands of students already learning on our platform.
-            </p>
-            <button className="btn-primary btn-large">
-              Get Started Today
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* Minimal Footer */}
+  return (
+    <div className="agriconnect-app">
+      <Navigation />
+      <main className="main-content">
+        {renderCurrentPage()}
+      </main>
       <footer className="footer">
         <div className="container">
-          <div className="footer-content">
-            <div className="footer-brand">
-              <GraduationCap size={20} color="#999" />
-              <span>© 2025 EduConnect</span>
-            </div>
-            <div className="footer-links">
-              <a href="#privacy">Privacy</a>
-              <a href="#terms">Terms</a>
-              <a href="#support">Support</a>
-            </div>
-          </div>
+          <p>&copy; 2025 AgriConnect - Connecting Agriculture with Education</p>
         </div>
       </footer>
     </div>
   );
 };
 
-export default LandingPage;
+export default AgriConnect;
