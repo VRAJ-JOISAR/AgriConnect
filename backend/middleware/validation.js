@@ -13,9 +13,9 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
-// Individual validation functions that can be used as middleware
 
-// User registration validation
+
+
 const validateRegister = async (req, res, next) => {
   await body('name')
     .trim()
