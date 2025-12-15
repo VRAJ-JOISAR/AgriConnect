@@ -1,103 +1,127 @@
-const express = require('express');
-const cors = require('cors');
-const mongoose = require('mongoose');
-require('dotenv').config();
+const express = require("express");
+const cors = require("cors");
+const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+require("dotenv").config();
 
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5000;
 
-// Basic middleware
+/* =======================
+   Middleware
+======================= */
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: "http://localhost:3000",
   credentials: true
 }));
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Database connection with better error handling
-const connectDB = async () => {
+/* =======================
+   MongoDB Connection
+======================= */
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ Connected to MongoDB"))
+  .catch(err => {
+    console.error("❌ MongoDB connection failed:", err.message);
+    process.exit(1);
+  });
+
+/* =======================
+   User Schema
+======================= */
+const userSchema = new mongoose.Schema({
+  name: String,
+  email: { type: String, unique: true },
+  password: String
+});
+
+const User = mongoose.model("User", userSchema);
+
+/* =======================
+   Health Check
+======================= */
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "success",
+    message: "AgriConnect Backend API is running!"
+  });
+});
+
+/* =======================
+   AUTH ROUTES (FIX)
+======================= */
+
+// REGISTER
+app.post("/api/auth/register", async (req, res) => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/agriconnect');
-    console.log('✅ Connected to MongoDB');
-  } catch (error) {
-    console.error('❌ MongoDB connection failed:', error.message);
-    console.log('🔄 Continuing without database...');
-  }
-};
+    const { name, email, password } = req.body;
 
-connectDB();
-
-// Health check endpoint (works without database)
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'success',
-    message: 'AgriConnect Backend API is running!',
-    timestamp: new Date(),
-    version: '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
-    port: PORT
-  });
-});
-
-// API documentation endpoint
-app.get('/api', (req, res) => {
-  res.json({
-    message: 'Welcome to AgriConnect API',
-    version: '1.0.0',
-    status: 'running',
-    endpoints: {
-      health: '/api/health - Health check',
-      docs: '/api - API documentation'
+    const exists = await User.findOne({ email });
+    if (exists) {
+      return res.status(400).json({ message: "User already exists" });
     }
-  });
-});
 
-// Basic route for testing
-app.get('/', (req, res) => {
-  res.json({
-    message: 'AgriConnect Backend Server',
-    status: 'running',
-    api: `/api`,
-    health: `/api/health`
-  });
-});
+    const hashedPassword = await bcrypt.hash(password, 12);
 
-// 404 handler for API routes
-app.use('/api/*', (req, res) => {
-  res.status(404).json({
-    status: 'error',
-    message: 'API endpoint not found',
-    path: req.originalUrl
-  });
-});
-
-// Global error handler
-app.use((error, req, res, next) => {
-  console.error('Global Error:', error.message);
-  res.status(error.status || 500).json({
-    status: 'error',
-    message: error.message || 'Internal Server Error'
-  });
-});
-
-// Start server with proper error handling
-const server = app.listen(PORT, () => {
-  console.log(`🚀 AgriConnect Backend Server Started`);
-  console.log(`📍 Running on: http://localhost:${PORT}`);
-  console.log(`🌐 API: http://localhost:${PORT}/api`);
-  console.log(`💚 Health: http://localhost:${PORT}/api/health`);
-}).on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`❌ Port ${PORT} is already in use`);
-    const altPort = PORT + 1;
-    console.log(`🔄 Trying port ${altPort}...`);
-    app.listen(altPort, () => {
-      console.log(`🚀 AgriConnect Backend Server Started on alternate port`);
-      console.log(`📍 Running on: http://localhost:${altPort}`);
-      console.log(`🌐 API: http://localhost:${altPort}/api`);
-      console.log(`💚 Health: http://localhost:${altPort}/api/health`);
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword
     });
-  } else {
-    console.error('❌ Server error:', err);
+
+    res.status(201).json({ message: "User registered successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
+});
+
+// LOGIN
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    res.json({
+      message: "Login successful",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+/* =======================
+   404 Handler
+======================= */
+app.use("/api/*", (req, res) => {
+  res.status(404).json({ message: "API endpoint not found" });
+});
+
+/* =======================
+   Start Server
+======================= */
+app.listen(PORT, () => {
+  console.log("🚀 AgriConnect Backend Server Started");
+  console.log(`📍 http://localhost:${PORT}`);
 });

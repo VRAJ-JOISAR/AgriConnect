@@ -47,19 +47,20 @@ const AgriConnect = () => {
 
   useEffect(() => {
     setCourses(sampleCourses);
-    // Check if user is logged in (check localStorage or make API call)
     const savedUser = localStorage.getItem('agriconnect_user');
     if (savedUser) {
       setCurrentUser(JSON.parse(savedUser));
     }
   }, []);
 
-  // Authentication Functions
+  // =========================
+  // AUTH FUNCTIONS (FIXED)
+  // =========================
+
   const handleLogin = async (email, password) => {
     setLoading(true);
     try {
-      // Simulate API call to backend
-      const response = await fetch('http://localhost:5001/api/auth/login', {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -67,14 +68,15 @@ const AgriConnect = () => {
         body: JSON.stringify({ email, password }),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
-        const data = await response.json();
-        setCurrentUser(data.data.user);
-        localStorage.setItem('agriconnect_user', JSON.stringify(data.data.user));
-        localStorage.setItem('agriconnect_token', data.data.token);
+        setCurrentUser(data.user);
+        localStorage.setItem('agriconnect_user', JSON.stringify(data.user));
+        localStorage.setItem('agriconnect_token', data.token);
         setCurrentPage('dashboard');
       } else {
-        alert('Login failed. Please check your credentials.');
+        alert(data.message || 'Login failed. Please check your credentials.');
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -86,7 +88,7 @@ const AgriConnect = () => {
   const handleRegister = async (userData) => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5001/api/auth/register', {
+      const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -94,14 +96,13 @@ const AgriConnect = () => {
         body: JSON.stringify(userData),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
-        const data = await response.json();
-        setCurrentUser(data.data.user);
-        localStorage.setItem('agriconnect_user', JSON.stringify(data.data.user));
-        localStorage.setItem('agriconnect_token', data.data.token);
-        setCurrentPage('dashboard');
+        alert('Registration successful! Please login.');
+        setCurrentPage('login');
       } else {
-        alert('Registration failed. Please try again.');
+        alert(data.message || 'Registration failed. Please try again.');
       }
     } catch (error) {
       console.error('Registration error:', error);
@@ -128,7 +129,10 @@ const AgriConnect = () => {
     alert('Successfully enrolled in course!');
   };
 
-  // Page Components
+  // =========================
+  // PAGE COMPONENTS (UNCHANGED)
+  // =========================
+
   const HomePage = () => (
     <div className="home-page">
       <div className="hero-section">
@@ -306,31 +310,11 @@ const AgriConnect = () => {
               <p>Certificates Earned</p>
             </div>
           </div>
-
-          <div className="dashboard-section">
-            <h3>My Courses</h3>
-            {enrolledCourses.length > 0 ? (
-              <div className="courses-list">
-                {enrolledCourses.map(course => (
-                  <div key={course.id} className="course-item">
-                    <h4>{course.title}</h4>
-                    <div className="progress-bar">
-                      <div className="progress-fill" style={{width: `${Math.random() * 100}%`}}></div>
-                    </div>
-                    <button className="btn-secondary">Continue Learning</button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p>No courses enrolled yet. <button className="link-button" onClick={() => setCurrentPage('courses')}>Browse Courses</button></p>
-            )}
-          </div>
         </div>
       </div>
     );
   };
 
-  // Navigation Component
   const Navigation = () => (
     <nav className="navigation">
       <div className="container nav-container">
@@ -363,7 +347,6 @@ const AgriConnect = () => {
     </nav>
   );
 
-  // Render current page
   const renderCurrentPage = () => {
     switch (currentPage) {
       case 'login':
